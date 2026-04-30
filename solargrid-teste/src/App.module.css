@@ -145,11 +145,3 @@
 .loginCard { background: white; padding: 40px; border-radius: 16px; width: 350px; text-align: center; }
 .loginInput { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd; }
 .btnLogin { width: 100%; padding: 12px; background: var(--orange); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
-
-/* No arquivo index.css ou main.css */
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  background-color: #111824; /* Cor padrão SolarGrid */
-}
