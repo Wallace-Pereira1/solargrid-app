@@ -1,0 +1,49 @@
+.container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background: #121214;
+  border-radius: 8px;
+  border: 1px solid #323238;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.syncButton {
+  background: #e1b12c; /* Laranja/Dourado SolarGrid */
+  color: #000;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.syncButton:hover { opacity: 0.9; }
+.syncButton:disabled { background: #7c7c8a; cursor: not-allowed; }
+
+.todoTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.todoTable th {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 2px solid #323238;
+  color: #8d8d99;
+}
+
+.todoTable td {
+  padding: 1rem 0.75rem;
+  border-bottom: 1px solid #29292e;
+}
+
+.done { color: #04d361; font-size: 0.875rem; }
+.pending { color: #e1b12c; font-size: 0.875rem; }
