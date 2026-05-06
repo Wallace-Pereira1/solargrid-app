@@ -212,3 +212,46 @@
 /* 9. LOGIN (OPCIONAL) */
 .loginWrapper { display: flex; align-items: center; justify-content: center; height: 100vh; background: #1a2333; }
 .loginCard { background: white; padding: 40px; border-radius: 16px; width: 350px; text-align: center; }
+
+.todoFilterBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.statusToggleGroup {
+  display: flex;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.statusBtn {
+  background: transparent;
+  border: none;
+  color: var(--light-text);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+
+.activeStatusBtn {
+  background: var(--orange);
+  color: #000;
+  border: none;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: bold;
+  border-radius: 6px;
+}
+
+.darkMode .statusToggleGroup {
+  background: #111a2e;
+}

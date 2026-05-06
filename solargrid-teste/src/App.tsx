@@ -7,19 +7,33 @@ import styles from './App.module.css';
 
 function App() {
   const [session, setSession] = useState<any>(null);
-  const [, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [feed, setFeed] = useState<any[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [activeTab, setActiveTab] = useState<'feed' | 'todos'>('feed');
   const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Estados de Filtro - Feed
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('autor');
+
+  // Estados de Filtro - Todos
+  const [searchTodo, setSearchTodo] = useState('');
+  const [todoFilterType, setTodoFilterType] = useState<'id' | 'title'>('title');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending'>('all');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) loadAllData();
     });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) loadAllData();
+    });
+
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   const loadAllData = async () => {
@@ -31,7 +45,7 @@ function App() {
       setFeed(postsData);
       setTodos(todosData);
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao carregar dados:", err);
     }
   };
 
@@ -77,11 +91,54 @@ function App() {
     }
   };
 
+  const handleClearFeed = async () => {
+    if (!window.confirm("Deseja limpar todo o Feed?")) return;
+    setLoading(true);
+    try {
+      await postService.clearFeed();
+      setFeed([]);
+      alert("Feed limpo!");
+    } catch (err) {
+      alert("Erro ao limpar feed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearTodos = async () => {
+    if (!window.confirm("Deseja limpar todas as tarefas?")) return;
+    setLoading(true);
+    try {
+      await todoService.clearTodos();
+      setTodos([]);
+      alert("Tarefas limpas!");
+    } catch (err) {
+      alert("Erro ao limpar tarefas.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredFeed = feed.filter(post => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return true;
     if (filterType === 'autor') return post.profiles?.name?.toLowerCase().includes(term);
     return post.title?.toLowerCase().includes(term);
+  });
+
+  const filteredTodos = todos.filter(todo => {
+    const term = searchTodo.toLowerCase().trim();
+    let matchesText = true;
+    if (term) {
+      if (todoFilterType === 'id') matchesText = todo.id.toString().includes(term);
+      else matchesText = todo.title.toLowerCase().includes(term);
+    }
+
+    let matchesStatus = true;
+    if (statusFilter === 'completed') matchesStatus = todo.completed === true;
+    if (statusFilter === 'pending') matchesStatus = todo.completed === false;
+
+    return matchesText && matchesStatus;
   });
 
   if (!session) return null;
@@ -108,10 +165,14 @@ function App() {
             <section className={styles.filterCard}>
               <div className={styles.filterHeader}>
                 <div className={styles.filterGroup}>
-                  <label><input type="radio" checked={filterType === 'autor'} onChange={() => setFilterType('autor')} /> Autor</label>
-                  <label><input type="radio" checked={filterType === 'titulo'} onChange={() => setFilterType('titulo')} /> Título</label>
+                  <label className={styles.radioLabel}>
+                    <input type="radio" checked={filterType === 'autor'} onChange={() => setFilterType('autor')} /> Autor
+                  </label>
+                  <label className={styles.radioLabel}>
+                    <input type="radio" checked={filterType === 'titulo'} onChange={() => setFilterType('titulo')} /> Título
+                  </label>
                 </div>
-                <button onClick={handleSyncFeed} className={styles.btnSync}>🔄 Sincronizar Feed</button>
+                <button onClick={handleSyncFeed} disabled={loading} className={styles.btnSync}>🔄 Sincronizar Feed</button>
               </div>
               <input 
                 type="text" 
@@ -123,55 +184,82 @@ function App() {
             </section>
 
             {filteredFeed.map(post => (
-  <article key={post.id} className={styles.card}>
-    <div className={styles.authorHeader}>
-      {/* Avatar Redondo com Foto Real */}
-      <img 
-        src={`https://picsum.photos/seed/${post.profiles?.id}/300/300`} 
-        alt={post.profiles?.name}
-        className={styles.avatarImg}
-      />
-      <div>
-        <h4 className={styles.authorName}>{post.profiles?.name}</h4>
-        <span className={styles.companyName}>{post.profiles?.company_name || 'SolarGrid Partner'}</span>
-      </div>
-    </div>
-    <h3 className={styles.postTitle}>{post.title}</h3>
-    <p className={styles.postBody}>{post.body}</p>
-  </article>
-))}
+              <article key={post.id} className={styles.card}>
+                <div className={styles.authorHeader}>
+                  <img 
+                    src={`https://picsum.photos/seed/${post.profiles?.id}/300/300`} 
+                    alt="avatar" 
+                    className={styles.avatarImg} 
+                  />
+                  <div>
+                    <h4 className={styles.authorName}>{post.profiles?.name}</h4>
+                    <span className={styles.companyName}>{post.profiles?.company_name || 'SolarGrid Partner'}</span>
+                  </div>
+                </div>
+                <h3 className={styles.postTitle}>{post.title}</h3>
+                <p className={styles.postBody}>{post.body}</p>
+              </article>
+            ))}
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+              <button onClick={handleClearFeed} disabled={loading} className={styles.btnClear}>🗑️ Limpar Feed</button>
+            </div>
           </>
         ) : (
           <section className={styles.card}>
-            <div className={styles.cardHeader}>
+            <div className={styles.cardHeader} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
               <h3>Tarefas Persistentes</h3>
-              <button onClick={handleSyncTodos} className={styles.btnSync}>🔄 Sincronizar Tarefas</button>
+              <button onClick={handleSyncTodos} disabled={loading} className={styles.btnSync}>🔄 Sincronizar Tarefas</button>
             </div>
-            {/* ... dentro do seu main, na condição da aba 'todos' ... */}
-<table className={styles.todoTable}>
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>User ID</th> {/* Nova coluna adicionada aqui */}
-      <th>Título</th>
-      <th>Status</th>
-    </tr>
-  </thead>
-  <tbody>
-    {todos.map(todo => (
-      <tr key={todo.id}>
-        <td>{todo.id}</td>
-        <td>{todo.user_id}</td> {/* Exibindo o valor que vem do banco */}
-        <td className={styles.todoTitleCell}>{todo.title}</td>
-        <td>
-          <span className={todo.completed ? styles.statusDone : styles.statusPending}>
-            {todo.completed ? '✓ Concluído' : 'Pendente'}
-          </span>
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>
+
+            <div className={styles.todoFilterBar}>
+              <div className={styles.filterGroup}>
+                <label className={styles.radioLabel}><input type="radio" checked={todoFilterType === 'id'} onChange={() => setTodoFilterType('id')} /> ID</label>
+                <label className={styles.radioLabel}><input type="radio" checked={todoFilterType === 'title'} onChange={() => setTodoFilterType('title')} /> Título</label>
+              </div>
+
+              <div className={styles.statusToggleGroup}>
+                <button className={statusFilter === 'all' ? styles.activeStatusBtn : styles.statusBtn} onClick={() => setStatusFilter('all')}>Todos</button>
+                <button className={statusFilter === 'completed' ? styles.activeStatusBtn : styles.statusBtn} onClick={() => setStatusFilter('completed')}>Check</button>
+                <button className={statusFilter === 'pending' ? styles.activeStatusBtn : styles.statusBtn} onClick={() => setStatusFilter('pending')}>Pendente</button>
+              </div>
+            </div>
+
+            <input 
+              type="text" 
+              placeholder={`Filtrar por ${todoFilterType}...`}
+              className={styles.searchInput}
+              value={searchTodo}
+              onChange={(e) => setSearchTodo(e.target.value)}
+              style={{ marginBottom: '20px' }}
+            />
+            
+            <table className={styles.todoTable}>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Título</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTodos.map(todo => (
+                  <tr key={todo.id}>
+                    <td>{todo.id}</td>
+                    <td className={styles.todoTitleCell}>{todo.title}</td>
+                    <td>
+                      <span className={todo.completed ? styles.statusDone : styles.statusPending}>
+                        {todo.completed ? '✓ Concluído' : 'Pendente'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+              <button onClick={handleClearTodos} disabled={loading} className={styles.btnClear}>🗑️ Limpar Tarefas</button>
+            </div>
           </section>
         )}
       </main>
