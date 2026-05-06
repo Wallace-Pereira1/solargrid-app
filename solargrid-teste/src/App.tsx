@@ -7,7 +7,7 @@ import styles from './App.module.css';
 
 function App() {
   const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [feed, setFeed] = useState<any[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [activeTab, setActiveTab] = useState<'feed' | 'todos'>('feed');
