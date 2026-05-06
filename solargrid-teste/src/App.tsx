@@ -45,7 +45,7 @@ function App() {
       setFeed(postsData);
       setTodos(todosData);
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao carregar dados:", err);
     }
   };
 
@@ -57,13 +57,71 @@ function App() {
     setLoading(false);
   };
 
-  // Funções de Sync e Clear (Mantidas conforme códigos anteriores)
-  const handleSyncTodos = async () => { setLoading(true); try { await todoService.syncExternalTodos(); await loadAllData(); alert('Sincronizado!'); } finally { setLoading(false); } };
-  const handleSyncFeed = async () => { setLoading(true); try { /* Lógica de Sync Feed */ await loadAllData(); alert('Feed Sincronizado!'); } finally { setLoading(false); } };
-  const handleClearFeed = async () => { if (window.confirm("Limpar Feed?")) { setLoading(true); await postService.clearFeed(); setFeed([]); setLoading(false); } };
-  const handleClearTodos = async () => { if (window.confirm("Limpar Tarefas?")) { setLoading(true); await todoService.clearTodos(); setTodos([]); setLoading(false); } };
+  // --- SINCRONIZAÇÃO ---
+  const handleSyncFeed = async () => {
+    setLoading(true);
+    try {
+      const [u, p] = await Promise.all([
+        fetch('https://jsonplaceholder.typicode.com/users').then(r => r.json()),
+        fetch('https://jsonplaceholder.typicode.com/posts').then(r => r.json())
+      ]);
 
-  // Lógica de Filtros
+      await supabase.from('posts').delete().neq('id', 0);
+      await supabase.from('profiles').delete().neq('id', 0);
+
+      await supabase.from('profiles').insert(u.map((user: any) => ({
+        id: user.id, name: user.name, username: user.username,
+        email: user.email, company_name: user.company.name
+      })));
+
+      await supabase.from('posts').insert(p.map((post: any) => ({
+        id: post.id, user_id: post.userId, title: post.title, body: post.body
+      })));
+
+      await loadAllData();
+      alert('Feed sincronizado!');
+    } catch (err) {
+      alert('Erro ao sincronizar feed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSyncTodos = async () => {
+    setLoading(true);
+    try {
+      await todoService.syncExternalTodos();
+      await loadAllData();
+      alert('Tarefas sincronizadas!');
+    } catch (err) {
+      alert('Erro na sincronização de tarefas.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- LIMPEZA ---
+  const handleClearFeed = async () => {
+    if (!window.confirm("Limpar todo o Feed?")) return;
+    setLoading(true);
+    try {
+      await postService.clearFeed();
+      setFeed([]);
+      alert("Feed limpo!");
+    } finally { setLoading(false); }
+  };
+
+  const handleClearTodos = async () => {
+    if (!window.confirm("Limpar todas as tarefas?")) return;
+    setLoading(true);
+    try {
+      await todoService.clearTodos();
+      setTodos([]);
+      alert("Tarefas limpas!");
+    } finally { setLoading(false); }
+  };
+
+  // --- FILTROS ---
   const filteredFeed = feed.filter(post => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return true;
@@ -84,7 +142,6 @@ function App() {
     return matchesText && matchesStatus;
   });
 
-  // --- CORREÇÃO AQUI: TELA DE LOGIN RESTAURADA ---
   if (!session) {
     return (
       <div className={styles.loginWrapper}>
@@ -93,32 +150,15 @@ function App() {
             SolarGrid <span style={{ color: '#e1b12c' }}>Social</span>
           </div>
           <form onSubmit={handleLogin}>
-            <input 
-              type="email" 
-              placeholder="E-mail" 
-              className={styles.loginInput} 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              required 
-            />
-            <input 
-              type="password" 
-              placeholder="Senha" 
-              className={styles.loginInput} 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-            />
-            <button type="submit" className={styles.btnLogin} disabled={loading}>
-              {loading ? 'Acessando...' : 'Acessar'}
-            </button>
+            <input type="email" placeholder="E-mail" className={styles.loginInput} value={email} onChange={e => setEmail(e.target.value)} required />
+            <input type="password" placeholder="Senha" className={styles.loginInput} value={password} onChange={e => setPassword(e.target.value)} required />
+            <button type="submit" className={styles.btnLogin} disabled={loading}>{loading ? 'Acessando...' : 'Acessar'}</button>
           </form>
         </div>
       </div>
     );
   }
 
-  // --- TELA PRINCIPAL (LOGADO) ---
   return (
     <div className={`${styles.container} ${isDarkMode ? styles.darkMode : ''}`}>
       <header className={styles.header}>
@@ -148,6 +188,7 @@ function App() {
               </div>
               <input type="text" placeholder={`Pesquisar por ${filterType}...`} className={styles.searchInput} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </section>
+
             {filteredFeed.map(post => (
               <article key={post.id} className={styles.card}>
                 <div className={styles.authorHeader}>
@@ -171,6 +212,7 @@ function App() {
               <h3>Tarefas Persistentes</h3>
               <button onClick={handleSyncTodos} disabled={loading} className={styles.btnSync}>🔄 Sincronizar Tarefas</button>
             </div>
+
             <div className={styles.todoFilterBar}>
               <div className={styles.filterGroup}>
                 <label className={styles.radioLabel}><input type="radio" checked={todoFilterType === 'id'} onChange={() => setTodoFilterType('id')} /> ID</label>
@@ -182,7 +224,9 @@ function App() {
                 <button className={statusFilter === 'pending' ? styles.activeStatusBtn : styles.statusBtn} onClick={() => setStatusFilter('pending')}>Pendente</button>
               </div>
             </div>
+
             <input type="text" placeholder={`Filtrar por ${todoFilterType}...`} className={styles.searchInput} value={searchTodo} onChange={(e) => setSearchTodo(e.target.value)} style={{ marginBottom: '20px' }} />
+            
             <table className={styles.todoTable}>
               <thead><tr><th>ID</th><th>Título</th><th>Status</th></tr></thead>
               <tbody>
